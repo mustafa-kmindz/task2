@@ -92,8 +92,11 @@ function createProductCard(product) {
     // Generate star rating
     const starsHTML = generateStarRating(product.rating);
     
+    // Generate image gallery HTML
+    const imageGalleryHTML = createImageGallery(product);
+    
     card.innerHTML = `
-        <img src="${product.images[0]}" alt="${product.title}" class="product-image" onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+        ${imageGalleryHTML}
         <h3 class="product-title">${product.title}</h3>
         <div class="product-price">
             $${discountedPrice.toFixed(2)}
@@ -103,7 +106,6 @@ function createProductCard(product) {
             <span class="stars">${starsHTML}</span>
             <span class="rating-value">${product.rating.toFixed(1)}</span>
         </div>
-        <img src="${product.thumbnail}" alt="${product.title} thumbnail" class="product-thumbnail" onerror="this.src='https://via.placeholder.com/60x60?text=No+Thumb'">
         <button class="show-description-btn" onclick="toggleDescription(${product.id})">Show Description</button>
         <div id="description-${product.id}" class="product-description">
             <div class="description-text">${product.description}</div>
@@ -112,6 +114,54 @@ function createProductCard(product) {
     `;
     
     return card;
+}
+
+// Create image gallery with multiple images and thumbnails
+function createImageGallery(product) {
+    const images = product.images || [];
+    const hasMultipleImages = images.length > 1;
+    const containerClass = hasMultipleImages ? '' : 'single-image';
+    
+    let thumbnailsHTML = '';
+    if (hasMultipleImages) {
+        thumbnailsHTML = `
+            <div class="thumbnails-container">
+                ${images.map((image, index) => `
+                    <img src="${image}" 
+                         alt="${product.title} thumbnail ${index + 1}" 
+                         class="product-thumbnail ${index === 0 ? 'active' : ''}" 
+                         onclick="changeMainImage(${product.id}, ${index})"
+                         onerror="this.src='https://via.placeholder.com/60x60?text=No+Thumb'">
+                `).join('')}
+            </div>
+        `;
+    } else if (product.thumbnail) {
+        // Show single thumbnail if only one image but thumbnail exists
+        thumbnailsHTML = `
+            <div class="thumbnails-container">
+                <img src="${product.thumbnail}" 
+                     alt="${product.title} thumbnail" 
+                     class="product-thumbnail active" 
+                     onerror="this.src='https://via.placeholder.com/60x60?text=No+Thumb'">
+            </div>
+        `;
+    }
+    
+    return `
+        <div class="product-image-container ${containerClass}" data-product-id="${product.id}">
+            <img src="${images[0] || product.thumbnail || 'https://via.placeholder.com/300x200?text=No+Image'}" 
+                 alt="${product.title}" 
+                 class="product-image" 
+                 id="main-image-${product.id}"
+                 onerror="this.src='https://via.placeholder.com/300x200?text=No+Image'">
+            ${hasMultipleImages ? `
+                <button class="image-navigation prev-image" onclick="navigateImage(${product.id}, -1)">‹</button>
+                <button class="image-navigation next-image" onclick="navigateImage(${product.id}, 1)">›</button>
+                <div class="image-counter" id="counter-${product.id}">1 / ${images.length}</div>
+            ` : ''}
+        </div>
+        ${thumbnailsHTML}
+    `;
 }
 
 // Generate star rating HTML
@@ -279,6 +329,14 @@ function setupEventListeners() {
     sortPriceLowToHigh.addEventListener('click', sortProductsByPriceLowToHigh);
     sortPriceHighToLow.addEventListener('click', sortProductsByPriceHighToLow);
     sortRatingHighToLow.addEventListener('click', sortProductsByRatingHighToLow);
+      // Setup keyboard navigation for images
+    setupKeyboardNavigation();
+    
+    // Setup touch navigation for mobile
+    setupTouchNavigation();
+    
+    // Setup image loading states
+    addImageLoadingStates();
 }
 
 // Utility functions
@@ -290,5 +348,134 @@ function showError(message) {
     productsContainer.innerHTML = `<div class="error">${message}</div>`;
 }
 
-// Make toggleDescription available globally
+// Make functions available globally
 window.toggleDescription = toggleDescription;
+window.changeMainImage = changeMainImage;
+window.navigateImage = navigateImage;
+
+// Image gallery functions
+function changeMainImage(productId, imageIndex) {
+    const mainImage = document.getElementById(`main-image-${productId}`);
+    const thumbnails = document.querySelectorAll(`[data-product-id="${productId}"] .product-thumbnail`);
+    const counter = document.getElementById(`counter-${productId}`);
+    
+    // Find the product to get its images
+    const product = [...allProducts, ...currentProducts].find(p => p.id === productId);
+    if (!product || !product.images) return;
+    
+    // Update main image
+    mainImage.src = product.images[imageIndex];
+    
+    // Update thumbnail active state
+    thumbnails.forEach((thumb, index) => {
+        thumb.classList.toggle('active', index === imageIndex);
+    });
+    
+    // Update counter
+    if (counter) {
+        counter.textContent = `${imageIndex + 1} / ${product.images.length}`;
+    }
+    
+    // Store current index for navigation
+    mainImage.dataset.currentIndex = imageIndex;
+}
+
+function navigateImage(productId, direction) {
+    const mainImage = document.getElementById(`main-image-${productId}`);
+    const product = [...allProducts, ...currentProducts].find(p => p.id === productId);
+    
+    if (!product || !product.images) return;
+    
+    const currentIndex = parseInt(mainImage.dataset.currentIndex || '0');
+    const totalImages = product.images.length;
+    let newIndex = currentIndex + direction;
+    
+    // Handle wraparound
+    if (newIndex >= totalImages) {
+        newIndex = 0;
+    } else if (newIndex < 0) {
+        newIndex = totalImages - 1;
+    }
+    
+    changeMainImage(productId, newIndex);
+}
+
+// Keyboard navigation for images
+function setupKeyboardNavigation() {
+    document.addEventListener('keydown', function(e) {
+        // Only work if focus is on a product card
+        const activeElement = document.activeElement;
+        const productCard = activeElement.closest('.product-card');
+        
+        if (!productCard) return;
+        
+        const imageContainer = productCard.querySelector('.product-image-container');
+        if (!imageContainer) return;
+        
+        const productId = parseInt(imageContainer.dataset.productId);
+        
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigateImage(productId, -1);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigateImage(productId, 1);
+        }
+    });
+}
+
+// Touch/swipe support for mobile image navigation
+function setupTouchNavigation() {
+    let startX = 0;
+    let startY = 0;
+    let currentProductId = null;
+    
+    document.addEventListener('touchstart', function(e) {
+        const imageContainer = e.target.closest('.product-image-container');
+        if (!imageContainer) return;
+        
+        currentProductId = parseInt(imageContainer.dataset.productId);
+        const touch = e.touches[0];
+        startX = touch.clientX;
+        startY = touch.clientY;
+    }, { passive: true });
+    
+    document.addEventListener('touchend', function(e) {
+        if (!currentProductId) return;
+        
+        const touch = e.changedTouches[0];
+        const endX = touch.clientX;
+        const endY = touch.clientY;
+        
+        const deltaX = endX - startX;
+        const deltaY = endY - startY;
+        
+        // Only trigger if horizontal swipe is dominant and significant
+        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+            if (deltaX > 0) {
+                // Swipe right - previous image
+                navigateImage(currentProductId, -1);
+            } else {
+                // Swipe left - next image
+                navigateImage(currentProductId, 1);
+            }
+        }
+        
+        currentProductId = null;
+    }, { passive: true });
+}
+
+// Add loading states for better UX
+function addImageLoadingStates() {
+    document.addEventListener('load', function(e) {
+        if (e.target.classList.contains('product-image')) {
+            e.target.style.opacity = '1';
+        }
+    }, true);
+    
+    document.addEventListener('error', function(e) {
+        if (e.target.classList.contains('product-image') || e.target.classList.contains('product-thumbnail')) {
+            e.target.style.opacity = '0.7';
+        }
+    }, true);
+}
