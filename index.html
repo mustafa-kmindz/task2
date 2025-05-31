@@ -19,10 +19,31 @@
                 <button id="searchBtn">Search</button>
                 <button id="clearSearchBtn">Clear Searches</button>
             </div>
+        </div>        <!-- Mobile Dropdowns (visible only on mobile) -->
+        <div class="mobile-controls">
+            <!-- Mobile Categories Dropdown -->
+            <div class="mobile-dropdown mobile-categories-dropdown">
+                <label class="dropdown-label" for="mobileCategoriesSelect">Filter by Category</label>
+                <select id="mobileCategoriesSelect" class="dropdown-select">
+                    <option value="">All Categories</option>
+                    <!-- Categories will be loaded here -->
+                </select>
+            </div>
+
+            <!-- Mobile Sort Dropdown -->
+            <div class="mobile-dropdown mobile-sort-dropdown">
+                <label class="dropdown-label" for="mobileSortSelect">Sort Products</label>
+                <select id="mobileSortSelect" class="dropdown-select">
+                    <option value="">Select Sort Option</option>
+                    <option value="price-low-to-high">Price: Low to High</option>
+                    <option value="price-high-to-low">Price: High to Low</option>
+                    <option value="rating-high-to-low">Rating: High to Low</option>
+                </select>
+            </div>
         </div>
 
         <div class="main-content">
-            <!-- Categories Section -->
+            <!-- Categories Section (desktop only) -->
             <aside class="categories-sidebar">
                 <h3>Categories</h3>
                 <div id="categoriesContainer">
@@ -33,7 +54,7 @@
 
             <!-- Products Section -->
             <main class="products-section">
-                <!-- Sort Buttons -->
+                <!-- Sort Buttons (desktop only) -->
                 <div class="sort-buttons">
                     <button id="sortPriceLowToHigh">Sort By Price Low To High</button>
                     <button id="sortPriceHighToLow">Sort By Price High To Low</button>
